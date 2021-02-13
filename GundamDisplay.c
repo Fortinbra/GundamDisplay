@@ -3,6 +3,7 @@
 #include "hardware/regs/rosc.h"
 #include "hardware/irq.h"
 #include "hardware/pwm.h"
+#include <math.h>
 
 uint32_t rnd_whitened(void)
 {
@@ -25,27 +26,20 @@ uint32_t rnd_whitened(void)
 void on_pwm_wrap()
 {
     static int fade = 0;
-    static bool going_up = true;
+    static int ii = 0;
+    float smoothness_pts = 3000;
+    float gamma = 0.14;
+    float beta = 0.75;
     // Clear the interrupt flag that brought us here
     pwm_clear_irq(pwm_gpio_to_slice_num(PICO_DEFAULT_LED_PIN));
 
-    if (going_up)
+    if (++ii < smoothness_pts)
     {
-        ++fade;
-        if (fade > 255)
-        {
-            fade = 255;
-            going_up = false;
-        }
+        fade = (int)(255.0 * (exp(-(pow(((ii / smoothness_pts) - beta) / gamma, 2.0)) / 2.0)));
     }
     else
     {
-        --fade;
-        if (fade < 0)
-        {
-            fade = 0;
-            going_up = true;
-        }
+        ii = 0;
     }
     // Square the fade value to make the LED's brightness appear more linear
     // Note this range matches with the wrap value
