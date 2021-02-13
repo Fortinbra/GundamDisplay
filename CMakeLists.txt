@@ -28,7 +28,7 @@ pico_enable_stdio_uart(GundamDisplay 1)
 pico_enable_stdio_usb(GundamDisplay 0)
 
 # Add the standard library to the build
-target_link_libraries(GundamDisplay pico_stdlib)
+target_link_libraries(GundamDisplay pico_stdlib hardware_pwm)
 
 pico_add_extra_outputs(GundamDisplay)
 

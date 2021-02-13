@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/regs/rosc.h"
+#include "hardware/irq.h"
+#include "hardware/pwm.h"
 
 uint32_t rnd_whitened(void)
 {
@@ -18,6 +20,36 @@ uint32_t rnd_whitened(void)
         random = (random << 1) | random_bit;
     }
     return random;
+}
+
+void on_pwm_wrap()
+{
+    static int fade = 0;
+    static bool going_up = true;
+    // Clear the interrupt flag that brought us here
+    pwm_clear_irq(pwm_gpio_to_slice_num(PICO_DEFAULT_LED_PIN));
+
+    if (going_up)
+    {
+        ++fade;
+        if (fade > 255)
+        {
+            fade = 255;
+            going_up = false;
+        }
+    }
+    else
+    {
+        --fade;
+        if (fade < 0)
+        {
+            fade = 0;
+            going_up = true;
+        }
+    }
+    // Square the fade value to make the LED's brightness appear more linear
+    // Note this range matches with the wrap value
+    pwm_set_gpio_level(PICO_DEFAULT_LED_PIN, fade * fade);
 }
 
 int main()
@@ -80,6 +112,8 @@ int main()
     gpio_init(LED_PIN27);
     gpio_init(LED_PIN28);
 
+    gpio_set_function(PICO_DEFAULT_LED_PIN, GPIO_FUNC_PWM);
+
     gpio_set_dir(LED_PIN0, GPIO_OUT);
     gpio_set_dir(LED_PIN1, GPIO_OUT);
     gpio_set_dir(LED_PIN2, GPIO_OUT);
@@ -109,6 +143,14 @@ int main()
     gpio_set_dir(LED_PIN27, GPIO_OUT);
     gpio_set_dir(LED_PIN28, GPIO_OUT);
 
+    uint slice_num = pwm_gpio_to_slice_num(PICO_DEFAULT_LED_PIN);
+    pwm_clear_irq(slice_num);
+    pwm_set_irq_enabled(slice_num, true);
+    irq_set_exclusive_handler(PWM_IRQ_WRAP, on_pwm_wrap);
+    irq_set_enabled(PWM_IRQ_WRAP, true);
+    pwm_config config = pwm_get_default_config();
+    pwm_init(slice_num, &config, true);
+    pwm_config_set_clkdiv(&config, 4.f);
     while (1)
     {
         gpio_put(LED_PIN0, rnd_whitened() % 2);
