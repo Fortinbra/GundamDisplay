@@ -41,8 +41,7 @@ void on_pwm_wrap()
     {
         ii = 0;
     }
-    // Square the fade value to make the LED's brightness appear more linear
-    // Note this range matches with the wrap value
+
     pwm_set_gpio_level(PICO_DEFAULT_LED_PIN, fade * fade);
 }
 
